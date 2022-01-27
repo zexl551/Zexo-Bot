@@ -1,55 +1,42 @@
-const Command = require("../../base/Command.js");
-
-class Eval extends Command {
-
-	constructor (client) {
-		super(client, {
-			name: "eval",
-			dirname: __dirname,
-			enabled: true,
-			guildOnly: false,
-			aliases: [],
-			memberPermissions: [],
-			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS" ],
-			nsfw: false,
-			ownerOnly: true,
-			cooldown: 3000
-		});
-	}
-
-	// eslint-disable-next-line no-unused-vars
-	async run (message, args, data) {
-
-		// eslint-disable-next-line no-unused-vars
-		const usersData = this.client.usersData;
-		// eslint-disable-next-line no-unused-vars
-		const guildsData = this.client.guildsData;
-        
-		const content = message.content.split(" ").slice(1).join(" ");
-		const result = new Promise((resolve) => resolve(eval(content)));
-        
-		return result.then((output) => {
-			if(typeof output !== "string"){
-				output = require("util").inspect(output, { depth: 0 });
-			}
-			if(output.includes(this.client.token)){
-				output = output.replace(this.client.token, "T0K3N");
-			}
-			message.channel.send(output, {
-				code: "js"
-			});
-		}).catch((err) => {
-			err = err.toString();
-			if(err.includes(this.client.token)){
-				err = err.replace(this.client.token, "T0K3N");
-			}
-			message.channel.send(err, {
-				code: "js"
-			});
-		});
-
-	}
-
-}
-
-module.exports = Eval;
+const { MessageEmbed } = require("discord.js");
+const Discord = require("discord.js");
+const util = require("util");
+const tokenwarning = `Error: Unexpected token`;
+module.exports = {
+  name: "eval",
+  description: "Evaluates js code",
+  category: "owner",
+  aliases: ["e"],
+  args: true,
+  ownerOnly: true,
+  usage: "eval <input_code>",
+  run: async (client, message, args) => {
+    const code = args.join(" ");
+  function clean(text) {
+      if (typeof text !== "string")
+        text = require("util").inspect(text, { depth: 0 });
+      text = text
+        .replace(/`/g, "`" + String.fromCharCode(8203))
+        .replace(/@/g, "@" + String.fromCharCode(8203));
+      return text;
+    }
+    const evalEmbed = new Discord.MessageEmbed().setColor("RANDOM");
+    try {
+      var evaled = clean(await eval(code));
+      if (evaled.startsWith("NTQ3M")) evaled = tokenwarning;
+      if (evaled.constructor.name === "Promise")
+        evalEmbed.setDescription(`\`\`\`\n${evaled}\n\`\`\``);
+      else evalEmbed.setDescription(`\`\`\`js\n${evaled}\n\`\`\``);
+      const newEmbed = new Discord.MessageEmbed()
+        .setDescription(
+          `📤 Login\n\`\`\`javascript\n${code}\n\`\`\`\n📥 Exit\n\`\`\`js\n${evaled}\`\`\``
+        )
+        .setColor("RANDOM");
+      message.channel.send({embeds: [newEmbed]});
+    } catch (err) {
+      evalEmbed.addField("There was an error;", `\`\`\`js\n${err}\n\`\`\``);
+      evalEmbed.setColor("#FF0000");
+      message.channel.send({embeds:[evalEmbed]});
+    }
+  }
+};

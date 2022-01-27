@@ -1,120 +1,136 @@
-const Command = require("../../base/Command.js"),
-	Discord = require("discord.js"),
-	ms = require("ms");
+const { MessageEmbed } = require("discord.js");
+const ms = require("ms");
 
-class Mute extends Command {
+module.exports = {
+  name: "mute",
+  description: "Mute anyone who break rules",
+  category: "moderation",
+  args: true,
+  usage: "mute <user> <reason>\nmute <user> <time> <reason>",
+  P_user: ["MANAGE_ROLES", "MANAGE_GUILD"],
+  P_bot: ["MANAGE_ROLES", "MANAGE_GUILD"],
+  run: async (client, message, args) => {
+    const [user, ...reason] = args;
+    try {
+      var mutee =
+        message.mentions.members.first() ||
+        message.guild.members.cache.get(user) ||
+        message.guild.members.cache.find(
+          r => r.user.username.toLowerCase() === user.toLocaleLowerCase()
+        ) ||
+        message.guild.members.cache.find(
+          ro => ro.displayName.toLowerCase() === user.toLocaleLowerCase()
+        );
+      if (!mutee)
+        return client.send("**Please Enter A Valid User To Be Muted!**", {
+          message
+        });
 
-	constructor (client) {
-		super(client, {
-			name: "mute",
-			dirname: __dirname,
-			enabled: true,
-			guildOnly: true,
-			aliases: [],
-			memberPermissions: [ "MANAGE_MESSAGES" ],
-			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS", "MANAGE_CHANNELS" ],
-			nsfw: false,
-			ownerOnly: false,
-			cooldown: 3000
-		});
-	}
+      if (mutee === message.member)
+        return client.send("**You Cannot Mute Yourself!**", { message });
+      if (
+        mutee.roles.highest.comparePositionTo(message.guild.me.roles.highest) >=
+        0
+      )
+        return client.send("**Cannot Mute This User!**", { message });
 
-	async run (message, args, data) {
-        
-		const member = await this.client.resolveMember(args[0], message.guild);
-		if(!member){
-			return message.error("moderation/mute:MISSING_MEMBER");
-		}
+      const duration = reason[0] ? ms(reason[0]) : false;
+      if (duration) reason.shift();
+      const _reason = reason.join(" ") || "There is no definite reason";
 
-		if(member.id === message.author.id){
-			return message.error("moderation/ban:YOURSELF");
-		}
+      if (mutee.user.bot)
+        return client.send("**Cannot Mute Bots!**", { message });
+      const userRoles = mutee.roles.cache
+        .filter(r => r.id !== message.guild.id)
+        .map(r => r.id);
 
-		const memberPosition = member.roles.highest.position;
-		const moderationPosition = message.member.roles.highest.position;
-		if(message.member.ownerID !== message.author.id && !(moderationPosition > memberPosition)){
-			return message.error("moderation/ban:SUPERIOR");
-		}
+      let muterole;
+      let dbmute = await client.data.fetch(`muterole_${message.guild.id}`);
+      let muteerole = message.guild.roles.cache.find(
+        r => r.name === client.config.mod.muted_defauld
+      );
 
-		const memberData = await this.client.findOrCreateMember({ id: member.id, guildID: message.guild.id });
+      if (!message.guild.roles.cache.has(dbmute)) {
+        muterole = muteerole;
+      } else {
+        muterole = message.guild.roles.cache.get(dbmute);
+      }
 
-		const time = args[1];
-		if(!time || isNaN(ms(time))){
-			return message.error("misc:INVALID_TIME");
-		}
+      if (!muterole) {
+        try {
+          muterole = await message.guild.roles.create({
+            data: {
+              name: client.config.mod.muted_defauld,
+              color: "#514f48",
+              permissions: []
+            }
+          });
+          message.guild.channels.cache.map(async channel => {
+            await channel.permissionOverwrites.create(muterole, {
+              SEND_MESSAGES: false,
+              ADD_REACTIONS: false,
+              SPEAK: false,
+              CONNECT: false
+            });
+          });
+        } catch (e) {
+          console.log(e);
+        }
+      }
+      if (mutee.roles.cache.has(muterole.id))
+        return client.send("**User Is Already Muted!**", { message });
 
-		let reason = args.slice(2).join(" ");
-		if(!reason){
-			reason = message.translate("misc:NO_REASON_PROVIDED");
-		}
-
-		message.guild.channels.cache.forEach((channel) => {
-			channel.updateOverwrite(member.id, {
-				SEND_MESSAGES: false,
-				ADD_REACTIONS: false,
-				CONNECT: false
-			}).catch(() => {});
-		});
-
-		member.send(message.translate("moderation/mute:MUTED_DM", {
-			username: member.user.username,
-			server: message.guild.name,
-			moderator: message.author.tag,
-			time,
-			reason
-		}));
-
-		message.success("moderation/mute:MUTED", {
-			username: member.user.tag,
-			server: message.guild.name,
-			moderator: message.author.tag,
-			time,
-			reason
-		});
-
-		data.guild.casesCount++;
-
-		const caseInfo = {
-			channel: message.channel.id,
-			moderator: message.author.id,
-			date: Date.now(),
-			type: "mute",
-			case: data.guild.casesCount,
-			reason,
-			time
-		};
-
-		memberData.mute.muted = true;
-		memberData.mute.endDate = Date.now()+ms(time);
-		memberData.mute.case = data.guild.casesCount;
-		memberData.sanctions.push(caseInfo);
-
-		memberData.markModified("sanctions");
-		memberData.markModified("mute");
-		await memberData.save();
-
-		await data.guild.save();
-
-		this.client.databaseCache.mutedUsers.set(`${member.id}${message.guild.id}`, memberData);
-
-		if(data.guild.plugins.modlogs){
-			const channel = message.guild.channels.cache.get(data.guild.plugins.modlogs);
-			if(!channel) return;
-			const embed = new Discord.MessageEmbed()
-				.setAuthor(message.translate("moderation/mute:CASE", {
-					count: data.guild.casesCount
-				}))
-				.addField(message.translate("common:USER"), `\`${member.user.tag}\` (${member.user.toString()})`, true)
-				.addField(message.translate("common:MODERATOR"), `\`${message.author.tag}\` (${message.author.toString()})`, true)
-				.addField(message.translate("common:REASON"), reason, true)
-				.addField(message.translate("common:DURATION"), time, true)
-				.addField(message.translate("common:EXPIRY"), message.printDate(new Date(Date.now()+ms(time))), true)
-				.setColor("#f44271");
-			channel.send(embed);
-		}
-
-	}
-
-}
-
-module.exports = Mute;
+      client.data.set(`muteeid_${message.guild.id}_${mutee.id}`, userRoles);
+      try {
+        const sembed2 = new MessageEmbed()
+          .setColor("RED")
+          .setDescription(
+            `**You Have Been Muted From ${
+              message.guild.name
+            }\nfor - ${_reason}\nBy ${message.author.tag}${
+              duration ? "\nTime - " + duration : ""
+            }**`
+          )
+          .setFooter(message.guild.name, message.guild.iconURL());
+        mutee.roles.set([muterole.id]).then(() => {
+          mutee.send({ embeds: [sembed2] }).catch(() => null);
+        });
+      } catch {
+        mutee.roles.set([muterole.id]);
+      }
+      if (_reason) {
+        const sembed = new MessageEmbed()
+          .setColor("GREEN")
+          .setAuthor(message.guild.name, message.guild.iconURL())
+          .setDescription(
+            `${mutee.user.username} was successfully muted for ${_reason}`
+          );
+        message.channel.send({ embeds: [sembed] });
+      } else {
+        const sembed2 = new MessageEmbed()
+          .setColor("GREEN")
+          .setDescription(`${mutee.user.username} was successfully muted`);
+        message.channel.send({ embeds: [sembed2] });
+      }
+      if (duration && !isNaN(duration)) {
+        setTimeout(async () => {
+          let ss = await client.data.get(
+            `muteeid_${message.guild.id}_${mutee.id}`
+          );
+          mutee.roles.remove(muterole.id).then(async () => {
+            var embed = new MessageEmbed()
+              .setColor("GREEN")
+              .setDescription(
+                `**${mutee.user.username}** has been Unmute\nReason: Duration expired.`
+              );
+            await message.channel.send({ embeds: [embed] });
+          });
+          mutee.roles.add(ss);
+        }, Number(duration));
+      }
+      client.ops.mod("Mute", "Muted", mutee, _reason, message, client);
+    } catch {
+      return;
+    }
+  }
+};

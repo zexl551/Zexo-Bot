@@ -1,34 +1,39 @@
-const Command = require("../../base/Command.js");
+const { MessageEmbed } = require("discord.js");
 
-class Eightball extends Command {
+module.exports = {
+  name: "8ball",
+  description: "ask the 8ball a question",
+  usage: "8ball <question>",
+  args: true,
+  category: "fun",
+  run: async (client, message, args) => {
+    let replies = [
+      "I think so",
+      "Yes",
+      "I guess",
+      "Yeah absolutely",
+      "Maybe",
+      "Possibly",
+      "No",
+      "Most likely",
+      "I Didnt Ask",
+      "I dont know",
+      "Without a doubt",
+      "Indeed",
+      "For sure",
+      "I dont care"
+    ];
 
-	constructor (client) {
-		super(client, {
-			name: "8ball",
-			dirname: __dirname,
-			enabled: true,
-			guildOnly: false,
-			aliases: [ "eight-ball", "eightball" ],
-			memberPermissions: [],
-			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS" ],
-			nsfw: false,
-			ownerOnly: false,
-			cooldown: 3000
-		});
-	}
+    let result = Math.floor(Math.random() * replies.length);
+    let question = args.join(" ");
 
-	async run (message, args) {
-        
-		if (!args[0] || !message.content.endsWith("?")) {
-			return message.error("fun/8ball:ERR_QUESTION");
-		}
+    let embed = new MessageEmbed()
 
-		const answerNO = parseInt(Math.floor(Math.random() * 10), 10);
-		const answer = message.translate(`fun/8ball:RESPONSE_${answerNO + 1}`);
+      .setColor("#000488")
+      .addField(`**${message.author.username}'s question**`, question)
+      .addField("**the 8ball says**", replies[result])
+      .setThumbnail(message.author.displayAvatarURL());
 
-		message.channel.send(`${message.author.username}, ${answer}`);
-	}
-
-}
-
-module.exports = Eightball;
+    message.reply({ embeds: [embed] });
+  }
+};

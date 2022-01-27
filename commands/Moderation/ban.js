@@ -1,118 +1,79 @@
-const Command = require("../../base/Command.js"),
-	Discord = require("discord.js");
-
-class Ban extends Command {
-
-	constructor (client) {
-		super(client, {
-			name: "ban",
-			dirname: __dirname,
-			enabled: true,
-			guildOnly: true,
-			aliases: [],
-			memberPermissions: [ "BAN_MEMBERS" ],
-			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS", "BAN_MEMBERS" ],
-			nsfw: false,
-			ownerOnly: false,
-			cooldown: 3000
-		});
-	}
-
-	async run (message, args, data) {
-        
-		const user = await this.client.resolveUser(args[0]);
-		if(!user){
-			return message.error("moderation/ban:MISSING_MEMBER");
-		}
-        
-		const memberData = message.guild.members.cache.get(user.id) ? await this.client.findOrCreateMember({ id: user.id, guildID: message.guild.id }) : null;
-
-		if(user.id === message.author.id){
-			return message.error("moderation/ban:YOURSELF");
-		}
-
-		// If the user is already banned
-		const banned = await message.guild.fetchBans();
-		if(banned.some((m) => m.user.id === user.id)){
-			return message.error("moderation/ban:ALREADY_BANNED", {
-				username: user.tag
-			});
-		}
-        
-		// Gets the ban reason
-		let reason = args.slice(1).join(" ");
-		if(!reason){
-			reason = message.translate("misc:NO_REASON_PROVIDED");
-		}
-
-		const member = await message.guild.members.fetch(user.id).catch(() => {});
-		if(member){
-			const memberPosition = member.roles.highest.position;
-			const moderationPosition = message.member.roles.highest.position;
-			if(message.member.ownerID !== message.author.id && !(moderationPosition > memberPosition)){
-				return message.error("moderation/ban:SUPERIOR");
-			}
-			if(!member.bannable) {
-				return message.error("moderation/ban:MISSING_PERM");
-			}
-		}
-        
-		await user.send(message.translate("moderation/ban:BANNED_DM", {
-			username: user.tag,
-			server: message.guild.name,
-			moderator: message.author.tag,
-			reason
-		})).catch(() => {});
-
-		// Ban the user
-		message.guild.members.ban(user, { reason } ).then(() => {
-
-			// Send a success message in the current channel
-			message.sendT("moderation/ban:BANNED", {
-				username: user.tag,
-				server: message.guild.name,
-				moderator: message.author.tag,
-				reason
-			});
-
-			const caseInfo = {
-				channel: message.channel.id,
-				moderator: message.author.id,
-				date: Date.now(),
-				type: "ban",
-				case: data.guild.casesCount,
-				reason
-			};
-
-			if(memberData){
-				memberData.sanctions.push(caseInfo);
-				memberData.save();
-			}
-
-			data.guild.casesCount++;
-			data.guild.save();
-
-			if(data.guild.plugins.modlogs){
-				const channel = message.guild.channels.cache.get(data.guild.plugins.modlogs);
-				if(!channel) return;
-				const embed = new Discord.MessageEmbed()
-					.setAuthor(message.translate("moderation/ban:CASE", {
-						count: data.guild.casesCount
-					}))
-					.addField(message.translate("common:USER"), `\`${user.tag}\` (${user.toString()})`, true)
-					.addField(message.translate("common:MODERATOR"), `\`${message.author.tag}\` (${message.author.toString()})`, true)
-					.addField(message.translate("common:REASON"), reason, true)
-					.setColor("#e02316");
-				channel.send(embed);
-			}
-
-		}).catch((err) => {
-			console.log(err);
-			return message.error("moderation/ban:MISSING_PERM");
-		});
-
-	}
-
-}
-
-module.exports = Ban;
+const Discord = require("discord.js"),
+  ms = require("ms");
+module.exports = {
+  name: "ban",
+  aliases: ["b", "banish"],
+  category: "moderation",
+  description: "Ban anyone with one shot whithout knowing anyone xD",
+  usage: "ban <@user> <reason>\nban <@user> <time> <reason>",
+  args: true,
+  P_user: ["BAN_MEMBERS"],
+  P_bot: ["BAN_MEMBERS"],
+  run: async (client, message, args) => {
+    const [user, ...reason] = args;
+    var banMember =
+      message.mentions.members.first() ||
+      message.guild.members.cache.get(user) ||
+      message.guild.members.cache.find(
+        r => r.user.username.toLowerCase() === user.toLocaleLowerCase()
+      ) ||
+      message.guild.members.cache.find(
+        ro => ro.displayName.toLowerCase() === user.toLocaleLowerCase()
+      );
+    if (!banMember)
+      return client.send("**User Is Not In The Guild**", { message });
+    if (banMember === message.member)
+      return client.send("**You Cannot Ban Yourself**", { message });
+    if (!banMember.bannable)
+      return client.send("**Cant Kick That User**", { message });
+    const duration = reason[0] ? ms(reason[0]) : false;
+    if (duration) reason.shift();
+    const _reason = reason.join(" ") || "There is no definite reason";
+    try {
+      const sembed2 = new Discord.MessageEmbed()
+        .setColor("RED")
+        .setDescription(
+          `**You Have Been Banned From ${message.guild.name}\nfor ${_reason}\nBy ${message.author.tag}`
+        )
+        .setFooter(message.guild.name, message.guild.iconURL());
+      banMember
+        .send({ embeds: [sembed2] })
+        .then(() => banMember.ban({ days: 7, reason: "" }))
+        .catch(() => null);
+    } catch {
+      message.guild.members.ban(banMember, { days: 7, reason: "" });
+    }
+    if (_reason) {
+      var sembed = new Discord.MessageEmbed()
+        .setColor("GREEN")
+        .setDescription(
+          `**${banMember.user.username}** has been banned for - ${_reason}`
+        );
+      message.channel.send({ embeds: [sembed] });
+    } else {
+      message.guild.members.ban(banMember, { days: 7, reason: _reason });
+      var sembed2 = new Discord.MessageEmbed()
+        .setColor("GREEN")
+        .setDescription(`**${banMember.user.username}** has been banned`);
+      message.channel.send({ embeds: [sembed2] });
+    }
+    if (duration && !isNaN(duration)) {
+      setTimeout(async () => {
+        message.guild.members
+          .unban(banMember, {
+            reason: "Duration expired"
+          })
+          .then(async () => {
+            var embed = new Discord.MessageEmbed()
+              .setColor("GREEN")
+              .setDescription(
+                `**${banMember.user.username}** has been Unbanned\nReason: Duration expired.`
+              );
+            await message.channel.send({ embeds: [embed] });
+          });
+        client.ops.mod("Ban","Banned", banMember, "Duration expired", message, client);
+      }, Number(duration));
+    }
+    client.ops.mod("Ban", "Banned", banMember, _reason, message, client);
+  }
+};
