@@ -1,6 +1,11 @@
 {
-  "DESCRIPTION": "Affiche le titre en cours de lecture.",
-  "USAGE": "np",
-  "LIVE": "🔴 LIVE",
-  "AUTHOR": "» En cours de lecture :"
+    "DESCRIPTION": "Affiche des informations sur la chanson en cours!",
+    "USAGE": "{{prefix}}np",
+    "EXAMPLES": "{{prefix}}np",
+    "CURRENTLY_PLAYING": "En cours de lecture",
+    "T_TITLE": "Titre",
+    "T_CHANNEL": "Salon",
+    "T_DURATION": "Durée",
+    "T_DESCRIPTION": "Description",
+    "NO_DESCRIPTION": "Aucune description..."
 }

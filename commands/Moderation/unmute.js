@@ -1,64 +1,53 @@
-// Dependencies
-const Command = require('../../structures/Command.js');
+const Command = require("../../base/Command.js");
 
-/**
- * Unmute command
- * @extends {Command}
-*/
 class Unmute extends Command {
-	/**
- 	 * @param {Client} client The instantiating client
- 	 * @param {CommandData} data The data for the command
-	*/
-	constructor(bot) {
-		super(bot, {
-			name:  'unmute',
-			guildOnly: true,
+
+	constructor (client) {
+		super(client, {
+			name: "unmute",
 			dirname: __dirname,
-			aliases: ['un-mute'],
-			userPermissions: ['MUTE_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'MUTE_MEMBERS', 'MANAGE_ROLES'],
-			description: 'Unmute a user.',
-			usage: 'unmute <user>',
-			cooldown: 2000,
-			examples: ['unmute username'],
+			enabled: true,
+			guildOnly: true,
+			aliases: [],
+			memberPermissions: [ "MANAGE_MESSAGES" ],
+			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS", "MANAGE_CHANNELS" ],
+			nsfw: false,
+			ownerOnly: false,
+			cooldown: 3000
 		});
 	}
 
-	/**
- 	 * Function for recieving message.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {message} message The message that ran the command
- 	 * @param {settings} settings The settings of the channel the command ran in
- 	 * @readonly
-	*/
-	async run(bot, message, settings) {
-		// Delete message
-		if (settings.ModerationClearToggle && message.deletable) message.delete();
+	async run (message, args) {
 
-		// Find user
-		const members = await message.getMember();
-
-		// Get the channel the member is in
-		const channel = message.guild.channels.cache.get(members[0].voice.channelID);
-		if (channel) {
-			// Make sure bot can deafen members
-			if (!channel.permissionsFor(bot.user).has('MUTE_MEMBERS')) {
-				bot.logger.error(`Missing permission: \`MUTE_MEMBERS\` in [${message.guild.id}].`);
-				return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: message.translate('permissions:MUTE_MEMBERS') }).then(m => m.timedDelete({ timeout: 10000 }));
-			}
+		const member = await this.client.resolveMember(args[0], message.guild);
+		if(!member){
+			return message.success("moderation/unmute:MISSING_MEMBER");
 		}
 
-		// Remove mutedRole from user
-		try {
-			await members[0].timeout(null, `${message.author.id} put user out of timeout`);
-			message.channel.success('moderation/unmute:SUCCESS', { USER: members[0].user }).then(m => m.timedDelete({ timeout: 3000 }));
-		} catch (err) {
-			if (message.deletable) message.delete();
-			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+		const memberPosition = member.roles.highest.position;
+		const moderationPosition = message.member.roles.highest.position;
+		if(message.member.ownerID !== message.author.id && !(moderationPosition > memberPosition)){
+			return message.error("moderation/ban:SUPERIOR");
 		}
+
+		const memberData = await this.client.findOrCreateMember({ id: member.id, guildID: message.guild.id });
+
+		if(memberData.mute.muted){
+			memberData.mute.endDate = Date.now();
+			memberData.markModified("mute");
+			memberData.save();
+			message.success("moderation/unmute:SUCCESS", {
+				username: member.user.tag
+			});
+		} else {
+			message.error("moderation/unmute:NOT_MUTED", {
+				username: member.user.tag
+			});
+		}
+        
+
 	}
+
 }
 
 module.exports = Unmute;

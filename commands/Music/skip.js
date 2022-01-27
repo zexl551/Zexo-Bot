@@ -1,81 +1,106 @@
-// Dependencies
-const { functions: { checkMusic } } = require('../../utils'),
-	Command = require('../../structures/Command.js');
+const Command = require("../../base/Command.js"),
+	Discord = require("discord.js");
 
-/**
- * skip command
- * @extends {Command}
-*/
 class Skip extends Command {
-	/**
- 	 * @param {Client} client The instantiating client
- 	 * @param {CommandData} data The data for the command
-	*/
-	constructor(bot) {
-		super(bot, {
-			name:  'skip',
-			guildOnly: true,
+
+	constructor (client) {
+		super(client, {
+			name: "skip",
 			dirname: __dirname,
-			aliases: ['next', 'skipto'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK'],
-			description: 'Skips the current song.',
-			usage: 'skip',
-			cooldown: 3000,
-			slash: true,
-			options: [{
-				name: 'amount',
-				description: 'position in queue to skip to',
-				type: 'INTEGER',
-				required: false,
-			}],
+			enabled: true,
+			guildOnly: true,
+			aliases: [ "next" ],
+			memberPermissions: [],
+			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS" ],
+			nsfw: false,
+			ownerOnly: false,
+			cooldown: 5000
 		});
 	}
 
-	/**
- 	 * Function for recieving message.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {message} message The message that ran the command
- 	 * @readonly
-  */
-	async run(bot, message) {
-		// check to make sure bot can play music based on permissions
-		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+	async run (message, args, data) {
+        
+		const queue = this.client.player.getQueue(message);
 
-		// skip song
-		const player = bot.manager?.players.get(message.guild.id);
-		if (!isNaN(message.args[0]) && message.args[0] < player.queue.length) {
-			player.stop(parseInt(message.args[0]));
-		} else {
-			player.stop();
+		const voice = message.member.voice.channel;
+		if (!voice){
+			return message.error("music/play:NO_VOICE_CHANNEL");
 		}
+
+		if(!queue){
+			return message.error("music/play:NOT_PLAYING");
+		}
+
+		if(!queue.tracks[0]){
+			return message.error("music/skip:NO_NEXT_SONG");
+		}
+
+		const members = voice.members.filter((m) => !m.user.bot);
+
+		const embed = new Discord.MessageEmbed()
+			.setAuthor(message.translate("music/skip:DESCRIPTION"))
+			.setThumbnail(queue.tracks[0].thumbnail)
+			.setFooter(data.config.embed.footer)
+			.setColor(data.config.embed.color);
+
+		const m = await message.channel.send(embed);
+
+		if(members.size > 1){
+            
+			m.react("👍");
+
+			const mustVote = Math.floor(members.size/2+1);
+
+			embed.setDescription(message.translate("music/skip:VOTE_CONTENT", {
+				songName: queue.tracks[0].name,
+				voteCount: 0,
+				requiredCount: mustVote
+			}));
+			m.edit(embed);
+    
+			const filter = (reaction, user) => {
+				const member = message.guild.members.cache.get(user.id);
+				const voiceChannel = member.voice.channel;
+				if(voiceChannel){
+					return voiceChannel.id === voice.id;
+				}
+			};
+
+			const collector = await m.createReactionCollector(filter, {
+				time: 25000
+			});
+
+			collector.on("collect", (reaction) => {
+				const haveVoted = reaction.count-1;
+				if(haveVoted >= mustVote){
+					this.client.player.skip(message);
+					embed.setDescription(message.translate("music/skip:SUCCESS"));
+					m.edit(embed);
+					collector.stop(true);
+				} else {
+					embed.setDescription(message.translate("music/skip:VOTE_CONTENT", {
+						songName: queue.tracks[0].title,
+						voteCount: haveVoted,
+						requiredCount: mustVote
+					}));
+					m.edit(embed);
+				}
+			});
+
+			collector.on("end", (collected, isDone) => {
+				if(!isDone){
+					return message.error("misc:TIMES_UP");
+				}
+			});
+
+		} else {
+			this.client.player.skip(message);
+			embed.setDescription(message.translate("music/skip:SUCCESS"));
+			m.edit(embed);
+		}
+        
 	}
 
-	/**
- 	 * Function for recieving interaction.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {interaction} interaction The interaction that ran the command
- 	 * @param {guild} guild The guild the interaction ran in
-	 * @param {args} args The options provided in the command, if any
- 	 * @readonly
-	*/
-	async callback(bot, interaction, guild, args) {
-		const member = guild.members.cache.get(interaction.user.id),
-			channel = guild.channels.cache.get(interaction.channelId),
-			amount = args.get('amount')?.value;
-
-		// check for DJ role, same VC and that a song is actually playing
-		const playable = checkMusic(member, bot);
-		if (typeof (playable) !== 'boolean') return interaction.reply({ embeds: [channel.error(playable, {}, true)], ephemeral: true });
-
-		// skip song
-		const player = bot.manager?.players.get(member.guild.id);
-		if (!isNaN(amount) && amount < player.queue.length) {
-			player.stop(amount);
-		} else {
-			player.stop();
-		}
-	}
 }
 
 module.exports = Skip;

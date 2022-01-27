@@ -1,12 +1,10 @@
 {
-  "DESCRIPTION": "Warn a user.",
-  "USAGE": "warn <user> [time] [reason]",
-  "TOO_POWERFUL": "I am unable to warn this user due to their power.",
-  "SUCCESS": "{{USER}} has been warned",
-  "REASON": "**Reason:** {{REASON}}",
-  "TITLE": "WARNING",
-  "WARN_BY": "Warned by:",
-  "WARN_IN": "You have been warned in {{NAME}}.",
-  "WARN_CNTR": "Warnings:",
-  "KICKED": "*{{USER}} was successfully kicked for having too many warnings*."
+    "DESCRIPTION": "Waarschuw een lid in privéberichten",
+    "USAGE": "{{prefix}}warn [@member] [reason]",
+    "EXAMPLES": "{{prefix}}warn @Androz#2091 Dumb",
+    "MISSING_MEMBER": "Geef het lid op dat je wilt waarschuwen!",
+    "MISSING_REASON": "Geef een reden op!",
+    "WARNED_DM": "Hallo {{username}},\nJe bent zojuist gewaarschuwd op **{{server}}** door **{{moderator}}** voor **{{reason}}**!",
+    "WARNED": "**{{username}}** has been warned in private messages for **{{reason}}**!",
+    "CASE": "Warn | Case #{{caseNumber}}"
 }

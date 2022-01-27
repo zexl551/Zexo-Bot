@@ -1,7 +1,6 @@
 {
-  "DESCRIPTION": "Liste les titres en attente.",
-  "USAGE": "queue [Numéro_de_page]",
-  "EMPTY": "File d'attente vide",
-  "NAN": "Numéro_de_page doit être un nombre.",
-  "TOO_HIGH": "Il n'y a que {{NUM}} pages."
+    "DESCRIPTION": "Affiche la file d'attente du serveur",
+    "USAGE": "{{prefix}}queue",
+    "EXAMPLES": "{{prefix}}queue",
+    "TITLE": "File d'attente du serveur"
 }

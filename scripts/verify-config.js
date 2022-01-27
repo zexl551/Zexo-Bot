@@ -1,150 +1,187 @@
-// Dependencies
-const { logger } = require('../utils'),
-	chalk = require('chalk'),
-	fetch = require('node-fetch'),
-	Discord = require('discord.js');
+/* eslint-disable no-async-promise-executor */
+const config = require("../config.js");
+const fetch = require("node-fetch");
 
-module.exports.run = async (config) => {
-	// This will check if the config is correct
-	logger.log('=-=-=-=-=-=-=- Config file Verification -=-=-=-=-=-=-=');
-	logger.log('Verifying config..');
+const chalk = require("chalk");
+const success = (message) => console.log(`   ${chalk.green("✓")} ${message}`);
+const error = (message, howToFix) => console.log(`   ${chalk.red("✗")} ${message}${howToFix ? ` : ${howToFix}` : ""}`);
+const ignore = (message) => console.log(`   ${chalk.yellow("~")} ${message}`);
 
-	// Make sure Node.js V16 or higher is being ran.
-	if (process.version.slice(1).split('.')[0] < 16) {
-		logger.error('Node 16 or higher is required.');
-		return true;
-	}
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-	// check owner ID array
-	if (config.ownerID) {
-		// validate owner ID's
-		for (const owner of config.ownerID) {
-			if (isNaN(owner)) {
-				logger.error(`${chalk.red('✗')} ownerID: ${owner} is invalid.`);
-				return true;
+const checks = [
+	() => {
+		console.log("\n\nEnvironnement");
+		return new Promise((res) => {
+			if(parseInt(process.version.split(".")[0].split("v")[1]) >= 12){
+				success("node.js version should be equal or higher than v12");
+			} else {
+				error("node.js version should be equal or higher than v12");
 			}
-		}
-	} else {
-		logger.error(`${chalk.red('✗')} Bot ownerID array is missing.`);
-		return true;
-	}
-
-	// check token
-	if (!config.token) {
-		logger.error(`${chalk.red('✗')} Bot token is missing.`);
-		return true;
-	} else {
-		logger.log('Checking client details..');
-		const client = new Discord.Client({ intents: ['GUILD_MEMBERS'] });
-		await client.login(config.token).catch(e => {
-			if (e.message == 'An invalid token was provided.') {
-				logger.error(`${chalk.red('✗')} Bot token is incorrect.`);
-				return true;
-			} else if (e.message == 'Privileged intent provided is not enabled or whitelisted.') {
-				logger.error(`${chalk.red('✗')} You need to enable privileged intents on the discord developer page.`);
-				return true;
+			res();
+		});
+	},
+	() => {
+		console.log("\n\nDiscord Bot");
+		return new Promise((res) => {
+			const Discord = require("discord.js");
+			const client = new Discord.Client();
+			let readyResolve;
+			new Promise((resolve) => readyResolve = resolve);
+			client.login(config.token).then(async () => {
+				success("should be a valid bot token");
+				await readyResolve();
+				if(!client.guilds.cache.has("568120814776614924")){
+					error("should be added to the emojis server", "please add your bot on this server: https://emojis.atlanta-bot.fr to make the emojis working");
+				} else {
+					success("should be added to the emojis server");
+				}
+				res();
+			}).catch(() => {
+				error("should be a valid bot token");
+				res();
+			});
+			client.on("ready", readyResolve);
+		});
+	},
+	() => {
+		console.log("\n\nMongoDB");
+		return new Promise((res) => {
+			const MongoClient = require("mongodb").MongoClient;
+			const dbName = config.mongoDB.split("/").pop();
+			const baseURL = config.mongoDB.substr(0, config.mongoDB.length - dbName.length);
+			const client = new MongoClient(baseURL, {
+				useUnifiedTopology: true
+			});
+			client.connect().then(async () => {
+				success("should be able to connect to Mongo database");
+				res();
+			}).catch(() => {
+				error("should be able to connect to Mongo database", "please verify if the MongoDB server is started");
+				res();
+			});
+		});
+	},
+	() => {
+		console.log("\n\nAPI keys");
+		return new Promise(async (resolve) => {
+			if(!config.apiKeys.amethyste){
+				ignore("amethyste API is not configured, key should not be checked.");
+			} else {
+				const res = await fetch("https://v1.api.amethyste.moe/generate/blurple", {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${config.apiKeys.amethyste}`
+					}
+				});
+				const result = await res.json();
+				if(result.status === 401){
+					error("should be a valid Amethyste API key", "get your key here: https://api.amethyste.moe/");
+				} else {
+					success("should be a valid Amethyste API key");
+				}
 			}
+			if(!config.apiKeys.blagueXYZ){
+				ignore("blague.xyz API is not configured, key should not be checked.");
+			} else {
+				const res = await fetch("https://blague.xyz/api/joke/random", {
+					headers: {
+						Authorization: config.apiKeys.blagueXYZ
+					}
+				});
+				const result = await res.json();
+				if(result.status === 401){
+					error("should be a valid blague.xyz key", "get your key here: https://blague.xyz/");
+				} else {
+					success("should be a valid blague.xyz key");
+				}
+			}
+			if(!config.apiKeys.dbl){
+				ignore("DBL API is not configured, key should not be checked.");
+			} else {
+				const res = await fetch("https://top.gg/api/bots/check?userId=test", {
+					method: "POST",
+					headers: {
+						Authorization: config.apiKeys.dbl
+					}
+				});
+				const result = await res.json();
+				if(result.error && result.error === "Unauthorized"){
+					error("should be a valid DBL key", "get your key here: https://top.gg/ OR delete the key from the config if you don't have a key");
+				} else {
+					success("should be a valid DBL key");
+				}
+			}
+			if(!config.apiKeys.fortniteFNBR){
+				ignore("fortniteFNBR API is not configured, key should not be checked.");
+			} else {
+				const res = await fetch("https://fnbr.co/api/stats", {
+					headers: {
+						"x-api-key": config.apiKeys.fortniteFNBR
+					}
+				});
+				const result = await res.json();
+				if(result.status && result.status === 401){
+					error("should be a valid FNBR key", "get your key here: https://fnbr.co/api/docs");
+				} else {
+					success("should be a valid FNBR key");
+				}
+			}
+			if(!config.apiKeys.sentryDSN){
+				ignore("SentryDSN is not configured, key should not be checked.");
+			} else {
+				const Sentry = require("@sentry/node");
+				try {
+					Sentry.init({ dsn: config.apiKeys.sentryDSN });
+					await delay(1000);
+					success("should be a valid Sentry DSN key");
+				} catch (e) {
+					error("should be a valid Sentry DSN key", "Sentry is not recommended, delete the key from the config");
+				}
+			}
+			resolve();
+		});
+	},
+	() => {
+		console.log("\n\nDashboard");
+		return new Promise(async (resolve) => {
+			if(!config.dashboard.enabled){
+				ignore("Dashboard is not enabled, config shouldn't be checked.");
+			} else {
+				const checkPortTaken = (port) => {
+					return new Promise((resolve) => {
+						const net = require("net");
+						const tester = net.createServer()
+							.once("error", () => {
+								resolve(true);
+							})
+							.once("listening", function() {
+								tester
+									.once("close", function() {
+										resolve(false);
+									})
+									.close();
+							})
+							.listen(port);
+					});
+				};
+				const isPortTaken = await checkPortTaken(config.dashboard.port);
+				if(isPortTaken){
+					error("dashboard port should be available", "you have probably another process using this port");
+				} else {
+					success("dashboard port should be available");
+				}
+			}
+			resolve();
 		});
 	}
+];
 
-	// Check twitch API
-	if (config.api_keys.twitch.clientID && config.api_keys.twitch.clientSecret) {
-		logger.log('Checking twitch credentials..');
-		const req = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${config.api_keys.twitch.clientID}&client_secret=${config.api_keys.twitch.clientSecret}&grant_type=client_credentials`, {
-			method: 'POST',
-		}).then(res => res.json()).catch(e => console.log(e));
-
-		// check response
-		if (req.message == 'invalid client secret') {
-			logger.error(`${chalk.red('✗')} Invalid twitch client secret.`);
-			return true;
-		}
-	} else {
-		logger.log(`${chalk.red('✗')} Twitch API key is missing.`);
+(async () => {
+	console.log(chalk.yellow("This script will check if your config is errored, and some other important things such as whether your database is started, etc..."));
+	for(const check of checks){
+		await check();
 	}
-
-	// Check fortnite API
-	if (!config.api_keys.fortnite) {
-		logger.log(`${chalk.red('✗')} Fortnite API key is missing.`);
-	} else {
-		logger.log('Checking Fortnite credentials');
-		try {
-			await (new (require('../APIs/fortnite.js'))(config.api_keys.fortnite)).user('Ninja', 'pc');
-		} catch (err) {
-			if (err.message == 'Invalid authentication credentials') {
-				logger.error(`${chalk.red('✗')} Fortnite API key is incorrect.`);
-				return true;
-			}
-		}
-	}
-
-	// Check Steam API
-	if (!config.api_keys.steam) {
-		logger.log(`${chalk.red('✗')} Steam API key is missing.`);
-	} else {
-		logger.log('Checking Steam credentials');
-		try {
-			await fetch(`http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${config.api_keys.steam}&vanityurl=eroticgaben`).then(res => res.json());
-		} catch (e) {
-			if (e.type == 'invalid-json') {
-				logger.error(`${chalk.red('✗')} Steam API key is incorrect.`);
-				return true;
-			}
-		}
-	}
-
-	// Check Amethyste API
-	if (!config.api_keys.amethyste) {
-		logger.log(`${chalk.red('✗')} Amethyste API key is missing.`);
-	} else {
-		logger.log('Checking Amethyste credentials');
-		const res = await fetch('https://v1.api.amethyste.moe/generate/blurple', {
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${config.api_keys.amethyste}`,
-			},
-		});
-		const result = await res.json();
-		if (result.status === 401) {
-			logger.error(`${chalk.red('✗')} Invalid Amethyste API key.`);
-			return true;
-		}
-	}
-
-	// Check support server set up
-	if (!config.SupportServer) {
-		logger.error(`${chalk.red('✗')} Support server setup is missing.`);
-	}
-
-	// Check mongodb connection
-	if (!config.MongoDBURl) {
-		logger.error(`${chalk.red('✗')} MongoDB URl is missing.`);
-		return true;
-	} else {
-		logger.log('Checking MongoDB URL');
-		const mongoose = require('mongoose');
-		await mongoose.connect(config.MongoDBURl, { useUnifiedTopology: true, useNewUrlParser: true }).catch((err) => {
-			console.log(err);
-			logger.error(`${chalk.red('✗')} Unable to connect to database.`);
-			return true;
-		});
-		mongoose.disconnect();
-	}
-
-	// check spotify credentials
-	if (config.api_keys.spotify.iD && config.api_keys.spotify.secret) {
-		logger.log('Checking Spotify credentials');
-		const { data: { access_token } } = await require('axios').post('https://accounts.spotify.com/api/token', 'grant_type=client_credentials', {
-			headers: {
-				Authorization: `Basic ${Buffer.from(`${config.api_keys.spotify.iD}:${config.api_keys.spotify.secret}`).toString('base64')}`,
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
-		});
-		if (!access_token) {
-			logger.error(`${chalk.red('✗')} Incorrect spotify credentials.`);
-			return true;
-		}
-	} else {
-		logger.log(`${chalk.red('✗')} Spotify credentials are missing.`);
-	}
-};
+	console.log(chalk.yellow("\n\nThank you for using Atlanta. If you need more help, join our support server here: https://discord.atlanta-bot.fr"));
+	process.exit(0);
+})();

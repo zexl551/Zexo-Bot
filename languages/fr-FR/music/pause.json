@@ -1,6 +1,6 @@
 {
-  "DESCRIPTION": "Suspendre une lecture en cours.",
-  "USAGE": "pause",
-  "IS_PAUSED": "Lecture déjà suspendue, `{{PREFIX}}resume` pour reprendre la lecture.",
-  "SUCCESS": "Lecture suspendue."
+    "DESCRIPTION": "Met en pause la musique en cours de lecture !",
+    "USAGE": "{{prefix}}pause",
+    "EXAMPLES": "{{prefix}}pause",
+    "SUCCESS": "⏸️ Musique mise en pause."
 }

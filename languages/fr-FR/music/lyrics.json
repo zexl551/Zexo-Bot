@@ -1,6 +1,10 @@
 {
-  "DESCRIPTION": "Obtenir les paroles d'une chanson.",
-  "USAGE": "lyrics [chanson]",
-  "NO_LYRICS": "Je ne trouve pas cette chanson.",
-  "FOOTER": "Demandé par {{TAG}}"
+    "DESCRIPTION": "Afficher les paroles du son",
+    "USAGE": "{{prefix}}lyrics [nom de la chanson]",
+    "EXAMPLES": "{{prefix}}lyrics Skyfall",
+    "LYRICS_OF": "🎤 {{songName}} paroles",
+    "AND_MORE": "\n**Et plus...**",
+    "REST": "Développer",
+    "MISSING_SONG_NAME": "Veuillez spécifier un son valide !",
+    "NO_LYRICS_FOUND": "Pas de paroles trouvées pour `{{songName}}` !"
 }

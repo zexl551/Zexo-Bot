@@ -1,70 +1,139 @@
-// Dependencies
-const	Command = require('../../structures/Command.js');
+const Command = require("../../base/Command.js"),
+	Discord = require("discord.js");
 
-/**
- * Warn command
- * @extends {Command}
-*/
 class Warn extends Command {
-	/**
- 	 * @param {Client} client The instantiating client
- 	 * @param {CommandData} data The data for the command
-	*/
-	constructor(bot) {
-		super(bot, {
-			name: 'warn',
-			guildOnly: true,
+
+	constructor (client) {
+		super(client, {
+			name: "warn",
 			dirname: __dirname,
-			aliases: ['warning'],
-			userPermissions: ['KICK_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'KICK_MEMBERS'],
-			description: 'Warn a user.',
-			usage: 'warn <user> [time] [reason]',
-			cooldown: 5000,
-			examples: ['warn username', 'warn username 3m bad'],
+			enabled: true,
+			guildOnly: true,
+			aliases: [],
+			memberPermissions: [ "MANAGE_MESSAGES" ],
+			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS" ],
+			nsfw: false,
+			ownerOnly: false,
+			cooldown: 3000
 		});
 	}
 
-	/**
- 	 * Function for recieving message.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {message} message The message that ran the command
- 	 * @param {settings} settings The settings of the channel the command ran in
- 	 * @readonly
-	*/
-	async run(bot, message, settings) {
-		// Delete message
-		if (settings.ModerationClearToggle && message.deletable) message.delete();
+	async run (message, args, data) {
+        
+		const member = await this.client.resolveMember(args[0], message.guild);
+		if(!member){
+			return message.error("moderation/warn:MISSING_MEMBER");
+		}
+		if(member.user.bot){
+			return message.error("misc:BOT_USER");
+		}
+		const memberData = await this.client.findOrCreateMember({ id: member.id, guildID: message.guild.id });
 
-		// check if a user was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/warn:USAGE')) }).then(m => m.timedDelete({ timeout: 10000 }));
-
-		// Get members mentioned in message
-		const members = await message.getMember(false);
-
-		// Make sure atleast a guildmember was found
-		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER').then(m => m.timedDelete({ timeout: 10000 }));
-
-		// Make sure user isn't trying to punish themselves
-		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH').then(m => m.timedDelete({ timeout: 10000 }));
-
-		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (members[0].permissions.has('ADMINISTRATOR') || members[0].roles.highest.comparePositionTo(message.guild.me.roles.highest) >= 0) {
-			return message.channel.error('moderation/warn:TOO_POWERFUL').then(m => m.timedDelete({ timeout: 10000 }));
+		if(member.id === message.author.id){
+			return message.error("moderation/ban:YOURSELF");
 		}
 
-		// Get reason for warning
-		const wReason = message.args[1] ? message.args.splice(1, message.args.length).join(' ') : message.translate('misc:NO_REASON');
+		const memberPosition = member.roles.highest.position;
+		const moderationPosition = message.member.roles.highest.position;
+		if(message.member.ownerID !== message.author.id && !(moderationPosition > memberPosition)){
+			return message.error("moderation/ban:SUPERIOR");
+		}
 
-		// Warning is sent to warning manager
-		try {
-			require('../../helpers/warningSystem').run(bot, message, members[0], wReason, settings);
-		} catch (err) {
-			if (message.deletable) message.delete();
-			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+		const reason = args.slice(1).join(" ");
+		if(!reason){
+			return message.error("moderation/warn:MISSING_REASON");
+		}
+
+		// Gets current member sanctions
+		const sanctions = memberData.sanctions.filter((s) => s.type === "warn").length;
+		const banCount = data.guild.plugins.warnsSanctions.ban;
+		const kickCount = data.guild.plugins.warnsSanctions.kick;
+        
+		data.guild.casesCount++;
+		data.guild.save();
+
+		const caseInfo = {
+			channel: message.channel.id,
+			moderator: message.author.id,
+			date: Date.now(),
+			type: "warn",
+			case: data.guild.casesCount,
+			reason
+		};
+
+		const embed = new Discord.MessageEmbed()
+			.addField(message.translate("common:USER"), `\`${member.user.tag}\` (${member.user.toString()})`)
+			.addField(message.translate("common:MODERATOR"), `\`${message.author.tag}\` (${message.author.toString()}`)
+			.addField(message.translate("common:REASON"), reason, true);
+
+		if(banCount){
+			if(sanctions >= banCount){
+				member.send(message.translate("moderation/ban:BANNED_DM", {
+					username: member.user,
+					moderator: message.author.tag,
+					server: message.guild.name,
+					reason
+				}));
+				caseInfo.type = "ban";
+				embed.setAuthor(message.translate("moderation/ban:CASE", {
+					count: data.guild.casesCount
+				}))
+					.setColor("#e02316");
+				message.guild.members.ban(member).catch(() => {});
+				message.success("moderation/setwarns:AUTO_BAN", {
+					username: member.user.tag,
+					count: banCount
+				});
+			}
+		}
+		
+		if(kickCount){
+			if(sanctions >= kickCount){
+				member.send(message.translate("moderation/kick:KICKED_DM", {
+					username: member.user,
+					moderator: message.author.tag,
+					server: message.guild.name,
+					reason
+				}));
+				caseInfo.type = "kick";
+				embed.setAuthor(message.translate("moderation/kick:CASE", {
+					count: data.guild.casesCount
+				}))
+					.setColor("#e88709");
+				member.kick().catch(() => {});
+				message.success("moderation/setwarns:AUTO_KICK", {
+					username: member.user.tag,
+					count: kickCount
+				});
+			}
+		}
+
+		member.send(message.translate("moderation/warn:WARNED_DM", {
+			username: member.user.tag,
+			server: message.guild.name,
+			moderator: message.author.tag,
+			reason
+		}));
+		caseInfo.type = "warn";
+		embed.setAuthor(message.translate("moderation/warn:CASE", {
+			caseNumber: data.guild.casesCount
+		}))
+			.setColor("#8c14e2");
+		message.success("moderation/warn:WARNED", {
+			username: member.user.tag,
+			reason
+		});
+
+		memberData.sanctions.push(caseInfo);
+		memberData.save();
+
+		if(data.guild.plugins.modlogs){
+			const channel = message.guild.channels.cache.get(data.guild.plugins.modlogs);
+			if(!channel) return;
+			channel.send(embed);
 		}
 	}
+
 }
 
 module.exports = Warn;

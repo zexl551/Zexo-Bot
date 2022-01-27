@@ -1,75 +1,120 @@
-// Dependencies
-const { time: { getTotalTime } } = require('../../utils'),
-	Command = require('../../structures/Command.js');
+const Command = require("../../base/Command.js"),
+	Discord = require("discord.js"),
+	ms = require("ms");
 
-/**
- * Mute command
- * @extends {Command}
-*/
 class Mute extends Command {
-	/**
- 	 * @param {Client} client The instantiating client
- 	 * @param {CommandData} data The data for the command
-	*/
-	constructor(bot) {
-		super(bot, {
-			name: 'mute',
-			guildOnly: true,
+
+	constructor (client) {
+		super(client, {
+			name: "mute",
 			dirname: __dirname,
-			aliases: ['timeout'],
-			userPermissions: ['MUTE_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'MUTE_MEMBERS', 'MANAGE_ROLES'],
-			description: 'Put a user in timeout.',
-			usage: 'mute <user> [time]',
-			cooldown: 2000,
-			examples: ['mute username', 'mute username 5m'],
+			enabled: true,
+			guildOnly: true,
+			aliases: [],
+			memberPermissions: [ "MANAGE_MESSAGES" ],
+			botPermissions: [ "SEND_MESSAGES", "EMBED_LINKS", "MANAGE_CHANNELS" ],
+			nsfw: false,
+			ownerOnly: false,
+			cooldown: 3000
 		});
 	}
 
-	/**
- 	 * Function for recieving message.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {message} message The message that ran the command
- 	 * @param {settings} settings The settings of the channel the command ran in
- 	 * @readonly
-	*/
-	async run(bot, message, settings) {
-		// Delete message
-		if (settings.ModerationClearToggle && message.deletable) message.delete();
-
-		// check if a user was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/mute:USAGE')) }).then(m => m.timedDelete({ timeout: 10000 }));
-
-		// Get members mentioned in message
-		const members = await message.getMember(false);
-
-		// Make sure atleast a guildmember was found
-		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER').then(m => m.timedDelete({ timeout: 10000 }));
-
-		// Get the channel the member is in
-		const channel = message.guild.channels.cache.get(members[0].voice.channelID);
-		if (channel) {
-			// Make sure bot can deafen members
-			if (!channel.permissionsFor(bot.user).has('MUTE_MEMBERS')) {
-				bot.logger.error(`Missing permission: \`MUTE_MEMBERS\` in [${message.guild.id}].`);
-				return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: message.translate('permissions:MUTE_MEMBERS') }).then(m => m.timedDelete({ timeout: 10000 }));
-			}
+	async run (message, args, data) {
+        
+		const member = await this.client.resolveMember(args[0], message.guild);
+		if(!member){
+			return message.error("moderation/mute:MISSING_MEMBER");
 		}
 
-		// Make sure user isn't trying to punish themselves
-		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH').then(m => m.timedDelete({ timeout: 10000 }));
-
-		// put user in timeout
-		try {
-			// default time is 7 days
-			await members[0].timeout(getTotalTime(message.args[1], message) ?? 604800000, `${message.author.id} put user in timeout`);
-			message.channel.success('moderation/mute:SUCCESS', { USER: members[0].user }).then(m => m.timedDelete({ timeout: 3000 }));
-		} catch (err) {
-			if (message.deletable) message.delete();
-			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+		if(member.id === message.author.id){
+			return message.error("moderation/ban:YOURSELF");
 		}
+
+		const memberPosition = member.roles.highest.position;
+		const moderationPosition = message.member.roles.highest.position;
+		if(message.member.ownerID !== message.author.id && !(moderationPosition > memberPosition)){
+			return message.error("moderation/ban:SUPERIOR");
+		}
+
+		const memberData = await this.client.findOrCreateMember({ id: member.id, guildID: message.guild.id });
+
+		const time = args[1];
+		if(!time || isNaN(ms(time))){
+			return message.error("misc:INVALID_TIME");
+		}
+
+		let reason = args.slice(2).join(" ");
+		if(!reason){
+			reason = message.translate("misc:NO_REASON_PROVIDED");
+		}
+
+		message.guild.channels.cache.forEach((channel) => {
+			channel.updateOverwrite(member.id, {
+				SEND_MESSAGES: false,
+				ADD_REACTIONS: false,
+				CONNECT: false
+			}).catch(() => {});
+		});
+
+		member.send(message.translate("moderation/mute:MUTED_DM", {
+			username: member.user.username,
+			server: message.guild.name,
+			moderator: message.author.tag,
+			time,
+			reason
+		}));
+
+		message.success("moderation/mute:MUTED", {
+			username: member.user.tag,
+			server: message.guild.name,
+			moderator: message.author.tag,
+			time,
+			reason
+		});
+
+		data.guild.casesCount++;
+
+		const caseInfo = {
+			channel: message.channel.id,
+			moderator: message.author.id,
+			date: Date.now(),
+			type: "mute",
+			case: data.guild.casesCount,
+			reason,
+			time
+		};
+
+		memberData.mute.muted = true;
+		memberData.mute.endDate = Date.now()+ms(time);
+		memberData.mute.case = data.guild.casesCount;
+		memberData.sanctions.push(caseInfo);
+
+		memberData.markModified("sanctions");
+		memberData.markModified("mute");
+		await memberData.save();
+
+		await data.guild.save();
+
+		this.client.databaseCache.mutedUsers.set(`${member.id}${message.guild.id}`, memberData);
+
+		if(data.guild.plugins.modlogs){
+			const channel = message.guild.channels.cache.get(data.guild.plugins.modlogs);
+			if(!channel) return;
+			const embed = new Discord.MessageEmbed()
+				.setAuthor(message.translate("moderation/mute:CASE", {
+					count: data.guild.casesCount
+				}))
+				.addField(message.translate("common:USER"), `\`${member.user.tag}\` (${member.user.toString()})`, true)
+				.addField(message.translate("common:MODERATOR"), `\`${message.author.tag}\` (${message.author.toString()})`, true)
+				.addField(message.translate("common:REASON"), reason, true)
+				.addField(message.translate("common:DURATION"), time, true)
+				.addField(message.translate("common:EXPIRY"), message.printDate(new Date(Date.now()+ms(time))), true)
+				.setColor("#f44271");
+			channel.send(embed);
+		}
+
 	}
+
 }
 
 module.exports = Mute;

@@ -1,122 +1,114 @@
 [
-  {
-    "name":"en-US",
-    "nativeName":"English",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":true,
-    "aliases":[
-      "English",
-      "english",
-      "en",
-      "en-us",
-      "en_us",
-      "en_US"
-    ]
-  },
-  {
-    "name":"fr-FR",
-    "nativeName":"French",
-    "moment":"fr",
-    "defaultMomentFormat":"Do MMMM YYYY",
-    "default":false,
-    "aliases":[
-      "Français",
-      "français",
-      "French",
-      "french",
-      "fr",
-      "fr-fr",
-      "fr_fr",
-      "fr_FR"
-    ]
-  },
-  {
-    "name":"ar-EG",
-    "nativeName":"Arabic (U.A.E.)",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "arabic",
-      "عربي"
-    ]
-  },
-  {
-    "name":"de-DE",
-    "nativeName":"German",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "Deutsch"
-    ]
-  },
-  {
-    "name":"en-upside",
-    "nativeName":"English (Upside down)",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "upside-down",
-      "upside"
-    ]
-  },
-  {
-    "name":"es-ES",
-    "nativeName":"Spanish",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "española",
-      "español"
-    ]
-  },
-  {
-    "name":"it-IT",
-    "nativeName":"Italian (Italy)",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "italian",
-      "Italy",
-      "italiana",
-      "italiano"
-    ]
-  },
-  {
-    "name":"nl-NL",
-    "nativeName":"Netherlands (Dutch)",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "netherlands",
-      "dutch"
-    ]
-  },
-  {
-    "name":"pt-BR",
-    "nativeName":"Brazilian Portuguese",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "Brazilian",
-      "Portuguese"
-    ]
-  },
-  {
-    "name":"ru-RU",
-    "nativeName":"Russian",
-    "moment":"en",
-    "defaultMomentFormat":"MMMM Do YYYY",
-    "default":false,
-    "aliases":[
-      "русский"
-    ]
-  }
+    {
+        "name": "en-US",
+        "nativeName": "English",
+        "moment": "en",
+        "defaultMomentFormat": "MMMM Do YYYY",
+        "default": true,
+        "aliases": [
+            "English",
+            "en",
+            "en-us",
+            "en_us",
+            "en_US"
+        ]
+    },
+    {
+        "name": "fr-FR",
+        "nativeName": "Français",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "fr",
+        "default": false,
+        "aliases": [
+            "French",
+            "français",
+            "francais",
+            "fr",
+            "fr_fr"
+        ]
+    },
+    {
+        "name": "es-ES",
+        "nativeName": "Español",
+        "defaultMomentFormat": "MMM Do, YYYY",
+        "moment": "es",
+        "default": false,
+        "aliases": [
+            "Spanish",
+            "es",
+            "es_es"
+        ]
+    },
+    {
+        "name": "it-IT",
+        "nativeName": "Italiano",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "it",
+        "default": false,
+        "aliases": [
+            "Italian",
+            "it",
+            "it_it"
+        ]
+    },
+    {
+        "name": "nl-NL",
+        "nativeName": "Nederlands",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "nl",
+        "default": false,
+        "aliases": [
+            "Dutch",
+            "nl",
+            "nl_nl"
+        ]
+    },
+    {
+        "name": "pt-PT",
+        "nativeName": "Português",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "pt",
+        "default": false,
+        "aliases": [
+            "Portuguese",
+            "pt",
+            "pt_pt"
+        ]
+    },
+    {
+        "name": "tr-TR",
+        "nativeName": "Türk",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "tr",
+        "default": false,
+        "aliases": [
+            "Turkish",
+            "tr",
+            "tr_tr"
+        ]
+    },
+    {
+        "name": "id-ID",
+        "nativeName": "bahasa Indonesia",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "id",
+        "default": false,
+        "aliases": [
+            "Indonesian",
+            "id",
+            "id_id"
+        ]
+    },
+    {
+        "name": "ro-RO",
+        "nativeName": "Română",
+        "defaultMomentFormat": "Do MMMM YYYY",
+        "moment": "ro",
+        "default": false,
+        "aliases": [
+            "Romanian",
+            "ro",
+            "ro_ro"
+        ]
+    }
 ]

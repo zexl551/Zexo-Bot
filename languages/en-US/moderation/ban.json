@@ -1,10 +1,13 @@
 {
-  "DESCRIPTION": "Ban a user.",
-  "USAGE": "ban <user> [reason] [time]",
-  "TITLE": "BANNED",
-  "MISSING_USER": "I can't punish someone not in this server.",
-  "TOO_POWERFUL": "I am unable to ban this user due to their power.",
-  "DESC": "You have been banned from {{NAME}}.",
-  "BAN_BY": "Banned by:",
-  "SUCCESS": "*<@{{USER}}> was successfully banned*."
+    "DESCRIPTION": "Ban the mentioned member!",
+    "USAGE": "{{prefix}}ban [@user] (reason)",
+    "EXAMPLES": "{{prefix}}ban @Androz#2091 Spam",
+    "MISSING_MEMBER": "Please specify a valid member to ban!",
+    "YOURSELF": "You can't sanction yourself!",
+    "SUPERIOR": "You can't sanction or update a sanction for a member who has an higher or equal role hierarchy to yours!",
+    "ALREADY_BANNED": "**{{username}}** is already banned!",
+    "MISSING_PERM": "An error has occurred... Please check that I have the permission to ban this specific member and try again!",
+    "BANNED_DM": "Hello {{username}},\nYou have just been banned from **{{server}}** by **{{moderator}}** because of **{{reason}}**!",
+    "BANNED": "**{{username}}** has just been banned from **{{server}}** by **{{moderator}}** because of **{{reason}}**!",
+    "CASE": "Ban | Case #{{count}}"
 }

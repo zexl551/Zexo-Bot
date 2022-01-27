@@ -1,6 +1,11 @@
 {
-  "DESCRIPTION": "Shows the current song playing.",
-  "USAGE": "np",
-  "LIVE": "🔴 LIVE",
-  "AUTHOR": "» Now playing:"
+    "DESCRIPTION": "Shows information about the current song!",
+    "USAGE": "{{prefix}}np",
+    "EXAMPLES": "{{prefix}}np",
+    "CURRENTLY_PLAYING": "Reproducción en curso",
+    "T_TITLE": "Título",
+    "T_CHANNEL": "Canal",
+    "T_DURATION": "Duración",
+    "T_DESCRIPTION": "Descripción",
+    "NO_DESCRIPTION": "Sin descripción..."
 }

@@ -1,11 +1,10 @@
 {
-  "DESCRIPTION": "Clear a certain amount of messages.",
-  "USAGE": "clear <Number> [member]",
-  "NO_PREM": "The server must be premium in order to clear more than `200` messages.",
-  "TITLE": "Clear Message Confirmation",
-  "DESC": "You are about to clear {{NUM}} messages from this channel, please react to confirm this action.",
-  "DEL_MSG": "Deleting {{NUM}} messages this will take around {{TIME}} seconds to complete.\nDO NOT SEND ANY MESSAGES WHILE THIS IS HAPPENING.",
-  "SUCCESS": "{{NUM}} messages were successfully deleted.",
-  "CON_CNC": "Confirmation cancelled",
-  "CON_TO": "Confirmation timed-out."
+    "DESCRIPTION": "Quickly delete multiple messages!",
+    "USAGE": "{{prefix}}clear [numero-de-mensajes] (@miembro)",
+    "EXAMPLES": "{{prefix}}clear 10\n{{prefix}}clear 10 @Androz#2091",
+    "MISSING_AMOUNT": "¡Debe especificar una cantidad de mensajes a eliminar!",
+    "ALL_CONFIRM": "All the channel messages will be deleted! To confirm type `-confirm`",
+    "CHANNEL_CLEARED": "¡Canal despejado!",
+    "CLEARED": "**{{amount}}** were messages deleted!",
+    "CLEARED_MEMBER": "**{{amount}}** messages of **{{username}}** were deleted!"
 }

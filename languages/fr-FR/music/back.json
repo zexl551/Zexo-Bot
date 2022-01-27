@@ -1,5 +1,8 @@
 {
-  "DESCRIPTION": "Joue la chanson précédente dans la file d'attente.",
-  "USAGE": "back",
-  "NO_PREV": "Il n'y a pas de chanson précédente."
+    "DESCRIPTION": "Play back the previous song",
+    "USAGE": "{{prefix}}back",
+    "EXAMPLES": "{{prefix}}back",
+    "NO_PREV_SONG": "There was no song before this one!",
+    "VOTE_CONTENT": "Previous song: {{songName}}\nReact with 👍 to play the previous song! {{requiredCount}} more votes are required.",
+    "SUCCESS": "Playing previous song!"
 }
